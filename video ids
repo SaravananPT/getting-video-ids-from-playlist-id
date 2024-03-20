@@ -1,0 +1,39 @@
+def Video_ids(playlist_ids, channel_id):
+    video_ids = []
+
+    for playlist_id in playlist_ids:
+        next_page_token = None
+
+        try:
+            while True:
+                request = youtube.playlistItems().list(
+                    part="snippet,contentDetails",
+                    playlistId=playlist_id,
+                    maxResults=50,  # Adjust the number of results per page if needed
+                    pageToken=next_page_token
+                )
+                response = request.execute()
+
+                if 'items' in response:
+                    for item in response['items']:
+                        video_ids.append({
+                            "channel_id": item['snippet']['channelId'],
+                            "video_id": item['contentDetails']['videoId']
+                        })
+
+                    next_page_token = response.get('nextPageToken')
+                    if not next_page_token:
+                        break  # Exit the loop if there are no more pages
+                else:
+                    break  # Exit the loop if no items are returned
+
+        except HttpError as e:
+            if e.resp.status == 404:
+                print(f"Playlist {playlist_id} not found. Skipping...")
+                # If the playlist is not found, add videos directly from the channel
+                video_ids.extend(Video_ids_from_channel(channel_id))
+            else:
+                print(f"Error retrieving videos from playlist {playlist_id}: {e}")
+            continue
+
+    return video_ids
